@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RFID Attendance Tracker</title>
+    <style>
+      * {
+          margin: 0;
+          padding: 0;
+      }
+
+      body {
+          font-family: 'Times New Roman', Times, serif;    
+          width: 100%;
+          background: url(aujas.jpg) no-repeat center center fixed; /* Use the image URL */
+          background-size: cover; /* Cover the entire viewport */
+          height: 100vh;
+      }
+
+      .main {
+          text-align: center;
+          margin: 20px;
+          position: relative;
+          font-family: 'Times New Roman', Times, serif;
+          color: #000000f5;
+          padding: 5%;
+      }
+
+      #current-student {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin: 20px;
+      }
+
+      #student-photo {
+          width: 150px;
+          height: 150px;
+          border-radius: 50%;
+          margin-right: 20px;
+          background-color: #4169E1;
+          display: inline-block;
+      }
+
+      .student-details {
+          font-size: 16px;
+          display: block;
+          font-family: Arial, Helvetica, sans-serif;
+          font-weight: bold;
+          color: #f59191;
+          background: linear-gradient(to top, rgba(95, 39, 39, 0.5)50%, rgba(0,0,0,0.5)50%);
+          position: relative;
+      }
+
+      #error-msg {
+          color: red;
+          display: none;
+          margin-top: 10px;
+      }
+
+      #records-container {
+          margin-top: 20px;
+      }
+
+      table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+      }
+
+      th, td {
+          border: 1px solid #ccc;
+          padding: 10px;
+          text-align: left;
+          color: #000000; /* Original color */
+          text-shadow: 0 0 5px rgba(255, 255, 255, 0.8); /* White glow effect */
+      }
+
+      td {
+         background-color: #ffffff;
+      }
+      th {
+          background-color: #f2f2f2;
+      }
+
+      button {
+          margin-top: 20px;
+          padding: 10px 20px;
+          font-size: 16px;
+          cursor: pointer;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div class="main">
+      <h1>RFID Attendance Tracker</h1>
+      <div id="current-student">
+        <div id="student-photo"></div>
+        <div class="student-details">
+          <div id="student-name">Student Name</div>
+          <div id="student-id">ID: </div>
+          <div id="course-name">Course: </div>
+          <div id="time">Time: </div>
+          <div id="error-msg">Unknown User</div>
+        </div>
+      </div>
+      <input type="text" id="rfidcard" placeholder="Scan RFID Card" autofocus>
+      <div id="records-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Photo</th>
+              <th>Name</th>
+              <th>ID</th>
+              <th>Course</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>In/Out Time</th> <!-- New column for In/Out time -->
+            </tr>
+          </thead>
+          <tbody id="records-table-body"></tbody>
+        </table>
+      </div>
+      <button id="copy-button">Copy Information</button>
+      <button id="clear-button">Clear Log</button>
+    </div>
+    <script>
+      const rfidInput = document.getElementById("rfidcard");
+      const studentPhoto = document.getElementById("student-photo");
+      const studentName = document.getElementById("student-name");
+      const studentId = document.getElementById("student-id");
+      const courseName = document.getElementById("course-name");
+ const timeElement = document.getElementById("time");
+      const errorMsg = document.getElementById("error-msg");
+      const recordsTableBody = document.getElementById("records-table-body");
+
+      // Student database with RFID keys
+      const studentDatabase = {
+        "0009175902": { name: "Khalil Tumanda", id: "12345", course: "STEM", photo: "https://encrypted-tbn0.gstatic.com/licensed-image?q=tbn:ANd9GcQCyIC7HIaTATK1Vqu3FAV35mVhCF_IZ04zlmfAkzZydHEp8mdDobWQG4PnT07c6H6R2-nrqJNH26nehMSdTemQ1qXEiP4BMRfSai-JBLa9JS-lpZnx3PyyvJ7rqzHw73S03XjQQgqR1Q" },
+        "0009159827": { name: "James Panganiban", id: "5461", course: "STEM", photo: "https://scontent.fmnl17-3.fna.fbcdn.net/v/t1.15752-9/482450505_1676348189654307_8011537765984687118_n.jpg?stp=dst-jpg_s480x480_tt6&_nc_cat=103&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeEsUjGgJmCF4uhkBJiTIpJC40zSiizkTqvjTNKKLOROqym3zqDr6R2E07ipAiBx-S2d1Udb1iJWKcozvi6iA_Ty&_nc_ohc=OBsEbOYgsjsQ7kNvgENEx3H&_nc_oc=AdgqOQj_Qm9vCcAgCRptjllqDFMRyd5zBgMYNAHJ2ifX1C5lTUxabpk0izCsUtzdTEU&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-3.fna&oh=03_Q7cD1wGzNiW0YK47TsP8TNbJPV91pAqLaWXFdwUSBnBEIrHMaw&oe=67F0C596" },
+        "0009180841": { name: "Nicole Bation", id: "58921", course: "STEM", photo: "https://via.placeholder.com/150/FF0000/FFFFFF?Text=Jane+Doe" },
+        "0009085751": { name: "Cyrah Robredillo", id: "54391", course: "STEM", photo: "https://scontent.fmnl17-3.fna.fbcdn.net/v/t1.15752-9/482406187_1594800364556973_7855299956605319808_n.jpg?stp=dst-jpg_p480x480_tt6&_nc_cat=103&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeH8OxNdUNedXEjVzPrTdDV68XwKMIiiHjXxfAowiKIeNah-fuIw_gdiAXhjNYVc0vEsU_9p6zLrvyK8T_B54vNT&_nc_ohc=xzw04iswc1AQ7kNvgGpvTwH&_nc_oc=AdiyYr3nJpZ8-WPXhkTFK9VOBL2BWFu_MQbCX1WqluR5abBqz2hmYJ3t12oYQu9zlFQ&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-3.fna&oh=03_Q7cD1wE4_aD2Yq89y-BsPlAlxP-Jce7umQgPZR3c5Hot9zHISg&oe=67F0AFA7" },
+        "0009067746": { name: "Czarina Legaspi", id: "54678", course: "STEM", photo: "https://scontent.fmnl17-2.fna.fbcdn.net/v/t1.15752-9/482372079_1160070888454088_2988127648322078087_n.jpg?stp=dst-jpg_s480x480_tt6&_nc_cat=111&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeEyCb0gBMwgvHBCsjx_-OGCnIjUmow6tDWciNSajDq0NVQoBnhaPDdxU8s4A_L4LUmGS5IobSG1M83Oo8f07PjY&_nc_ohc=7qquTOhdiqEQ7kNvgFz0-D6&_nc_oc=AdjZXT8Ih_pL7MBC6vyFswsfxaGyYMH7Eqfc1kfx-axZxT5tH3FKZo6aS_1LuDFWbus&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-2.fna&oh=03_Q7cD1wGGb1hAwjLZ6BORbbHpe5HOCTZupaDYY_rs6EKO7ZwWZQ&oe=67F0A95B" },
+        "0009016409": { name: "Angel Obo", id: "54234", course: "STEM", photo: "https://scontent.fmnl17-4.fna.fbcdn.net/v/t1.15752-9/482393709_1636653010357940_8761847328048789112_n.jpg?stp=dst-jpg_s480x480_tt6&_nc_cat=105&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeGxSKrFoFlEZT27d5NuBn5LAl04sWBPN14CXTixYE83XtfkEFQpXHzHJ74IjQ5DmR2zcGxgo2Gm1iNgDX5CMpQm&_nc_ohc=4-0ja1DoMr8Q7kNvgGoB42j&_nc_oc=AdhfiYA2FlgejSj-Mmh5b7Y1bHmvnuZJfgLTMDbhMtR8zrKDds8HKmw-7BuMZl8pbLg&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-4.fna&oh=03_Q7cD1wGELfUi4idXz8k4EgsWDsNtnJfK_e-CAthOu2ONEXgC1A&oe=67F094D2" },
+        "0009145162": { name: "John Selwyn Nunez", id: "54234", course: "STEM", photo: "https://scontent.fmnl17-2.fna.fbcdn.net/v/t1.15752-9/481864398_511400158733983_8854173180462657225_n.jpg?stp=dst-jpg_p480x480_tt6&_nc_cat=111&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeEg0s6i6ij4iqnnA1aH5NnP9st_2GX0AtT2y3_YZfQC1Oke_FTSm-a5QE7BLXFrhZqB4zcx4CQlUdvADjHpv-q2&_nc_ohc=5TU5h0PUmikQ7kNvgHmS-Vk&_nc_oc=AdjaCnS_kzSy_lDLSfU7P8HQU25aY3g2a9fqx7-h70st-ZJ0DdJE2rhOp19XjTIVTcQ&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-2.fna&oh=03_Q7cD1wFmBhdMH8C2cjoHuy3lhzGke70o2lDMVEbRiTBMaTmfWA&oe=67F09F15" },
+        "0009047026": { name: "Percida Obello", id: "54432", course: "STEM", photo: "https://scontent.fmnl17-3.fna.fbcdn.net/v/t1.15752-9/482057361_2094638454386924_6519427887398371782_n.jpg?stp=dst-jpg_s480x480_tt6&_nc_cat=103&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeEpfi-mZ6J1zoqjbWfTWPYlOGbBO6zs1DU4ZsE7rOzUNadSGkDKNFp7pDUQG3YkBr8edlfanyE-ZdzRv8HOSSyi&_nc_ohc=AaYP7uhFyQAQ7kNvgGZqvJb&_nc_oc=AdjNMenKaEmGnTHSEMdkoEDxOpl-N2H64ox50vZrGxgeTh_aguUawmL70mc-PyoVoF4&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-3.fna&oh=03_Q7cD1wE4ZsHub66As4nkUufFJLBeeWAX1Wb-iI8qR-gxWI0OsA&oe=67F0C9D1" },
+        "0009134497": { name: " Carl Justine Manipol", id: "54675", course: "STEM", photo: "https://scontent.fmnl17-3.fna.fbcdn.net/v/t1.15752-9/482059273_660171750024577_554750722876456665_n.jpg?stp=dst-jpg_p480x480_tt6&_nc_cat=103&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeH4LvYcjaZWNcHnbwF15oaSpwJkn5DV2uCnAmSfkNXa4M4OYjJ7iVkWtj69FSPctsNGltb5W_2Z25gGsJPUkEOU&_nc_ohc=LIh4IRDBmBYQ7kNvgHyVP_R&_nc_oc=Adiwnh0wdg8Jt6FnZ-eyKM3toilC5ydVZeLPI3fr5QZGyEE1ioy-wf-m-PgtzqCQRgc&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl17-3.fna&oh=03_Q7cD1wFJIq1tVPgsV7lyROrOWhzwaZ08fL-ke1LAr5cnfqajjQ&oe=67F0A634" },
+        "0009118289": { name: "Lebron James", id: "54891", course: "STEM", photo: "https://via.placeholder.com/150/FF0000/FFFFFF?Text=Jane+Doe" }
+      };
+
+      let attendanceStatus = {}; // Track attendance status for each student
+
+      rfidInput.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {  // Check if "Enter" key is pressed
+          event.preventDefault();
+          const rfid = rfidInput.value.trim();
+          const student = studentDatabase[rfid];
+
+          if (student) {
+            studentPhoto.style.backgroundImage = `url(${student.photo})`;
+            studentPhoto.style.backgroundSize = "cover"; // Ensure the image covers the div
+            studentPhoto.style.backgroundPosition = "center"; // Center the image
+            studentName.textContent = student.name;
+            studentId.textContent = `ID: ${student.id}`;
+            courseName.textContent = `Course: ${student.course}`;
+            timeElement.textContent = `Time: ${new Date().toLocaleTimeString()}`;
+            errorMsg.style.display = "none";
+
+            // Determine In/Out status
+            if (!attendanceStatus[rfid]) {
+              attendanceStatus[rfid] = { status: "In", time: new Date().toLocaleTimeString() };
+              addRecordToTable(student, attendanceStatus[rfid].status, attendanceStatus[rfid].time);
+            } else {
+              attendanceStatus[rfid].status = attendanceStatus[rfid].status === "In" ? "Out" : "In";
+              attendanceStatus[rfid].time = new Date().toLocaleTimeString();
+              updateRecordInTable(rfid, attendanceStatus[rfid].status, attendanceStatus[rfid].time);
+            }
+
+            // Start the 3-second timer
+            setTimeout(() => {
+              resetDisplay();
+            }, 3000);
+          } else {
+            errorMsg.style.display = "block";
+            resetDisplay();
+          }
+
+          rfidInput.value = ""; // Clear input after processing
+        }
+      });
+
+      function addRecordToTable(student, status, time) {
+        const newRow = document.createElement("tr");
+        newRow.setAttribute("data-rfid", student.id); // Set a data attribute for easy access
+        newRow.innerHTML = `
+          <td><img src="${student.photo}" alt="${student.name}" style="width:50px;height:50px;border-radius:50%;"></td>
+          <td>${student.name}</td>
+          <td>${student.id}</td>
+          <td>${student.course}</td>
+          <td>${new Date().toLocaleTimeString()}</td>
+          <td>${status}</td>
+          <td>${time}</td>
+        `;
+        recordsTableBody.appendChild(newRow);
+      }
+
+      function updateRecordInTable(rfid, status, time) {
+        const existingRow = recordsTableBody.querySelector(`tr[data-rfid="${rfid}"]`);
+        if (existingRow) {
+          existingRow.cells[5].textContent = status; // Update status cell
+          existingRow.cells[6].textContent = time; // Update In/Out time cell
+        }
+      }
+
+      function resetDisplay() {
+        studentPhoto.style.backgroundImage = "none";
+        studentName.textContent = "Student Name";
+        studentId.textContent = "ID: ";
+        courseName.textContent = "Course: ";
+        timeElement.textContent = "Time: ";
+        errorMsg.style.display = "none";
+      }
+
+      // Copy information button functionality
+      document.getElementById("copy-button").addEventListener("click", function() {
+        let textToCopy = "";
+        document.querySelectorAll("#records-table-body tr").forEach(row => {
+          textToCopy += row.innerText + "\n";
+        });
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          alert("Records copied to clipboard!");
+        });
+      });
+
+      // Clear log button functionality
+      document.getElementById("clear-button").addEventListener("click", function() {
+        recordsTableBody.innerHTML = "";
+        attendanceStatus = {}; // Reset attendance status
+        alert("Log cleared!");
+      });
+
+      // Auto-focus RFID input field on page load
+      window.onload = () => {
+        rfidInput.focus();
+      };
+    </script>
+  </body>
+</html>
